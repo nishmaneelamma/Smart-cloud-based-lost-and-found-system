@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Lost &amp; Found System</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; }
+
+    header {
+      background: linear-gradient(135deg, #1a56db 0%, #1e40af 100%);
+      color: white;
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    header p  { font-size: 13px; opacity: 0.75; margin-top: 3px; }
+    .live-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #34d399; display: inline-block;
+      animation: pulse 1.5s infinite;
+      margin-right: 6px;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .live-label { font-size: 12px; opacity: 0.9; display: flex; align-items: center; }
+
+    .container { max-width: 1200px; margin: 28px auto; padding: 0 20px; }
+    .grid-top { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 22px 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    }
+    .card h2 { font-size: 15px; font-weight: 600; color: #111; margin-bottom: 16px; }
+
+    .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    select, input[type="text"], input[type="email"], input[type="date"] {
+      flex: 1; min-width: 130px;
+      padding: 9px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #1a1a1a;
+      background: #fafafa;
+      outline: none;
+      transition: border-color .15s;
+    }
+    select:focus, input:focus { border-color: #1a56db; background: #fff; }
+
+    .btn {
+      padding: 9px 22px;
+      background: #1a56db;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background .15s;
+    }
+    .btn:hover { background: #1446b5; }
+    #msg { font-size: 12px; color: #6b7280; margin-top: 8px; min-height: 18px; }
+    #msg.ok  { color: #059669; }
+    #msg.err { color: #dc2626; }
+
+    /* Notifications */
+    .notif-empty { font-size: 13px; color: #9ca3af; padding: 8px 0; }
+    .notif-item {
+      padding: 12px 14px;
+      background: #f0fdf4;
+      border-left: 3px solid #10b981;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+      animation: slideIn .3s ease;
+    }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+    .notif-item strong { color: #065f46; font-weight: 600; }
+    .notif-item .notif-detail { color: #374151; margin-top: 4px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { background: #f8fafc; }
+    th { text-align: left; padding: 10px 12px; font-weight: 600; color: #4b5563; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .badge.lost      { background: #fee2e2; color: #991b1b; }
+    .badge.found     { background: #d1fae5; color: #065f46; }
+    .badge.matched   { background: #dbeafe; color: #1e40af; }
+    .badge.unmatched { background: #fef3c7; color: #92400e; }
+
+    .empty-row td { text-align: center; padding: 32px; color: #9ca3af; }
+
+    .stats-bar {
+      display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .stat {
+      background: white; border-radius: 10px; padding: 14px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.07);
+      min-width: 130px; flex: 1;
+    }
+    .stat-val { font-size: 28px; font-weight: 700; color: #1a56db; }
+    .stat-lbl { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+    @media (max-width: 680px) {
+      .grid-top { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Smart Lost &amp; Found System</h1>
+    <p>Cloud Computing Project — Event-driven Microservices on Docker</p>
+  </div>
+  <div class="live-label"><span class="live-dot"></span> Live</div>
+</header>
+
+<div class="container">
+
+  <!-- Stats bar -->
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">Total Items</div></div>
+    <div class="stat"><div class="stat-val" id="stat-lost"  style="color:#991b1b">0</div><div class="stat-lbl">Lost</div></div>
+    <div class="stat"><div class="stat-val" id="stat-found" style="color:#065f46">0</div><div class="stat-lbl">Found</div></div>
+    <div class="stat"><div class="stat-val" id="stat-matched" style="color:#1e40af">0</div><div class="stat-lbl">Matched</div></div>
+  </div>
+
+  <div class="grid-top">
+
+    <!-- Report form -->
+    <div class="card">
+      <h2>Report an Item</h2>
+      <div class="form-row">
+        <select id="type">
+          <option value="lost">Lost</option>
+          <option value="found">Found</option>
+        </select>
+        <input type="text" id="name" placeholder="Item name (e.g. Blue backpack)">
+      </div>
+      <div class="form-row">
+        <select id="category">
+          <option value="bag">Bag / Backpack</option>
+          <option value="wallet">Wallet</option>
+          <option value="phone">Phone</option>
+          <option value="keys">Keys</option>
+          <option value="laptop">Laptop</option>
+          <option value="id-card">ID Card</option>
+          <option value="other">Other</option>
+        </select>
+        <input type="text" id="location" placeholder="Location (e.g. Library)">
+      </div>
+      <div class="form-row">
+        <input type="date" id="date">
+        <input type="email" id="contact" placeholder="Your email">
+      </div>
+      <button class="btn" onclick="submitItem()">Submit Report</button>
+      <div id="msg"></div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="card">
+      <h2>Match Notifications</h2>
+      <div id="notifications">
+        <p class="notif-empty">No matches yet — items will appear here automatically when a match is found.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Items table -->
+  <div class="card">
+    <h2>All Reported Items</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Item Name</th>
+            <th>Category</th>
+            <th>Location</th>
+            <th>Date</th>
+            <th>Contact</th>
+            <th>Status</th>
+            <th>Matched With</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr class="empty-row"><td colspan="9">Loading items...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Set today's date as default
+  document.getElementById('date').valueAsDate = new Date();
+
+  async function submitItem() {
+    const payload = {
+      type:     document.getElementById('type').value,
+      name:     document.getElementById('name').value.trim(),
+      category: document.getElementById('category').value,
+      location: document.getElementById('location').value.trim(),
+      date:     document.getElementById('date').value,
+      contact:  document.getElementById('contact').value.trim()
+    };
+
+    const msg = document.getElementById('msg');
+
+    if (!payload.name || !payload.location || !payload.date || !payload.contact) {
+      msg.textContent = 'Please fill in all fields before submitting.';
+      msg.className = 'err';
+      return;
+    }
+
+    try {
+      const res  = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        msg.textContent = `Reported successfully! Item ID: ${data.id} — watching for matches...`;
+        msg.className = 'ok';
+        document.getElementById('name').value    = '';
+        document.getElementById('location').value = '';
+        document.getElementById('contact').value  = '';
+        loadAll();
+      } else {
+        msg.textContent = 'Error: ' + (data.error || JSON.stringify(data));
+        msg.className = 'err';
+      }
+    } catch (e) {
+      msg.textContent = 'Network error — is the service running?';
+      msg.className = 'err';
+    }
+  }
+
+  async function loadAll() {
+    await Promise.all([loadItems(), loadNotifications()]);
+  }
+
+  async function loadItems() {
+    try {
+      const items = await fetch('/api/items').then(r => r.json());
+      if (!Array.isArray(items)) return;
+
+      // Update stats
+      document.getElementById('stat-total').textContent   = items.length;
+      document.getElementById('stat-lost').textContent    = items.filter(i => i.type === 'lost').length;
+      document.getElementById('stat-found').textContent   = items.filter(i => i.type === 'found').length;
+      document.getElementById('stat-matched').textContent = items.filter(i => i.status === 'matched').length;
+
+      const tbody = document.getElementById('tbody');
+      if (!items.length) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No items reported yet. Use the form above to add one.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.map(i => `
+        <tr>
+          <td>${i.id}</td>
+          <td><span class="badge ${i.type}">${i.type}</span></td>
+          <td>${escHtml(i.name)}</td>
+          <td>${escHtml(i.category)}</td>
+          <td>${escHtml(i.location)}</td>
+          <td>${i.date}</td>
+          <td>${escHtml(i.contact)}</td>
+          <td><span class="badge ${i.status}">${i.status}</span></td>
+          <td>${i.matched_with ? '#' + i.matched_with : '—'}</td>
+        </tr>`).join('');
+    } catch (e) {
+      console.error('loadItems error:', e);
+    }
+  }
+
+  async function loadNotifications() {
+    try {
+      const notifs = await fetch('/api/notifications').then(r => r.json());
+      const el = document.getElementById('notifications');
+      if (!Array.isArray(notifs) || !notifs.length) {
+        el.innerHTML = '<p class="notif-empty">No matches yet — items will appear here automatically when a match is found.</p>';
+        return;
+      }
+      el.innerHTML = notifs.map(n => `
+        <div class="notif-item">
+          <strong>Match Found!</strong>
+          <div class="notif-detail">
+            Lost&nbsp;&nbsp;: <b>${escHtml(n.lost.name)}</b> (${escHtml(n.lost.contact)})<br>
+            Found : <b>${escHtml(n.found.name)}</b> (${escHtml(n.found.contact)})
+          </div>
+        </div>`).join('');
+    } catch (e) {
+      console.error('loadNotifications error:', e);
+    }
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Initial load + auto-refresh every 3 seconds
+  loadAll();
+  setInterval(loadAll, 3000);
+</script>
+</body>
+</html>

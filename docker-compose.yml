@@ -1,0 +1,48 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
+  item-service:
+    build: ./item-service
+    ports:
+      - "5001:5001"
+    environment:
+      - REDIS_HOST=redis
+    volumes:
+      - ./data:/data
+    depends_on:
+      - redis
+    restart: always
+
+  match-service:
+    build: ./match-service
+    environment:
+      - REDIS_HOST=redis
+      - ITEM_SVC_URL=http://item-service:5001
+    depends_on:
+      - redis
+      - item-service
+    restart: always
+
+  notify-service:
+    build: ./notify-service
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+    restart: always
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "8888:8080"
+    environment:
+      - ITEM_SVC_URL=http://item-service:5001
+      - REDIS_HOST=redis
+    depends_on:
+      - item-service
+      - redis
+    restart: always
